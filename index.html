@@ -1,1311 +1,692 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>NPE BACKEND MISSION CONTROL</title>
-  <style>
-    :root {
-      --bg-base: #070b14;
-      --bg-panel: #0f172a;
-      --bg-card: #1e293b;
-      --bg-card-hover: #263349;
-      --border-color: #334155;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --accent-blue: #3b82f6;
-      --accent-blue-hover: #2563eb;
-      
-      /* Priority Colors */
-      --prio-0: #a855f7; /* 特急 Purple */
-      --prio-1: #ef4444; /* 急 Red */
-      --prio-2: #eab308; /* 一般 Yellow */
-      --prio-3: #22c55e; /* 不急 Green */
-
-      /* Status Colors */
-      --stat-0: #64748b; /* 未開始 Gray */
-      --stat-1: #3b82f6; /* 執行中 Blue */
-      --stat-2: #f59e0b; /* 等待中 Yellow/Orange */
-      --stat-3: #10b981; /* 已完成 Green */
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans TC", sans-serif;
-    }
-
-    body {
-      background-color: var(--bg-base);
-      color: var(--text-main);
-      line-height: 1.5;
-      padding-bottom: 40px;
-      overflow-x: hidden;
-    }
-
-    /* Header & Role Switcher */
-    header {
-      background: linear-gradient(180deg, #0f172a 0%, #090e1a 100%);
-      border-bottom: 1px solid var(--border-color);
-      padding: 16px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-    }
-
-    .header-top {
-      max-width: 1100px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    @media (min-width: 768px) {
-      .header-top {
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-      }
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .brand-dot {
-      width: 10px;
-      height: 10px;
-      background-color: #22c55e;
-      border-radius: 50%;
-      box-shadow: 0 0 8px #22c55e;
-    }
-
-    .brand h1 {
-      font-size: 1.15rem;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      color: #f8fafc;
-    }
-
-    .date-badge {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      background: rgba(255, 255, 255, 0.05);
-      padding: 4px 10px;
-      border-radius: 6px;
-      border: 1px solid var(--border-color);
-      display: inline-block;
-      margin-top: 4px;
-    }
-
-    .role-selector {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-
-    .role-btn {
-      background-color: var(--bg-card);
-      color: var(--text-muted);
-      border: 1px solid var(--border-color);
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      min-height: 40px;
-    }
-
-    .role-btn:hover {
-      background-color: var(--bg-card-hover);
-      color: var(--text-main);
-    }
-
-    .role-btn.active {
-      background-color: var(--accent-blue);
-      color: #fff;
-      border-color: var(--accent-blue);
-      box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
-    }
-
-    .role-btn.manager-btn.active {
-      background-color: #6366f1;
-      border-color: #6366f1;
-      box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
-    }
-
-    /* Main Container */
-    main {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-    }
-
-    /* Alerts & Banners */
-    .alert-box {
-      padding: 14px 16px;
-      border-radius: 10px;
-      font-size: 0.9rem;
-      display: none;
-      line-height: 1.5;
-    }
-
-    .alert-warning {
-      background-color: rgba(245, 158, 11, 0.15);
-      border: 1px solid #f59e0b;
-      color: #fcd34d;
-    }
-
-    .alert-error {
-      background-color: rgba(239, 68, 68, 0.15);
-      border: 1px solid #ef4444;
-      color: #fca5a5;
-    }
-
-    /* Section Panels */
-    .panel {
-      background-color: var(--bg-panel);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 18px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-    }
-
-    .panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .panel-title {
-      font-size: 1.05rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      color: #e2e8f0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    /* Manager Grid: Team Today Status */
-    .member-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
-
-    @media (min-width: 600px) {
-      .member-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
-    @media (min-width: 900px) {
-      .member-grid {
-        grid-template-columns: repeat(3, 1fr);
-      }
-    }
-
-    .member-card {
-      background-color: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 10px;
-      padding: 16px;
-      cursor: pointer;
-      transition: transform 0.15s, border-color 0.2s, background-color 0.2s;
-    }
-
-    .member-card:hover {
-      background-color: var(--bg-card-hover);
-      border-color: var(--accent-blue);
-      transform: translateY(-2px);
-    }
-
-    .member-card-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-
-    .member-name {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: #fff;
-    }
-
-    .member-rate {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: #10b981;
-      background: rgba(16, 185, 129, 0.15);
-      padding: 2px 8px;
-      border-radius: 6px;
-    }
-
-    .member-stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      text-align: center;
-      background: rgba(15, 23, 42, 0.6);
-      padding: 10px 6px;
-      border-radius: 8px;
-    }
-
-    .stat-item span {
-      display: block;
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
-
-    .stat-item strong {
-      font-size: 1.1rem;
-      color: var(--text-main);
-    }
-
-    .stat-item.running strong { color: #60a5fa; }
-    .stat-item.done strong { color: #34d399; }
-
-    /* Forms (Assign & Add Task) */
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
-
-    @media (min-width: 768px) {
-      .form-grid.assign-grid {
-        grid-template-columns: 1fr 2fr 1fr;
-      }
-      .form-grid.member-add-grid {
-        grid-template-columns: 2fr 1fr;
-      }
-    }
-
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .form-group label {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      font-weight: 600;
-    }
-
-    input, select, textarea {
-      background-color: #090e1a;
-      border: 1px solid var(--border-color);
-      color: var(--text-main);
-      padding: 12px;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      width: 100%;
-      min-height: 46px;
-    }
-
-    input:focus, select:focus, textarea:focus {
-      outline: none;
-      border-color: var(--accent-blue);
-    }
-
-    .btn-primary {
-      background-color: var(--accent-blue);
-      color: #fff;
-      border: none;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-      min-height: 48px;
-      transition: background-color 0.2s;
-      width: 100%;
-      margin-top: 6px;
-    }
-
-    .btn-primary:hover {
-      background-color: var(--accent-blue-hover);
-    }
-
-    .btn-primary:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    /* Weekly Team Overview Chart */
-    .chart-container {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .chart-row {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    @media (min-width: 600px) {
-      .chart-row {
-        flex-direction: row;
-        align-items: center;
-        gap: 14px;
-      }
-    }
-
-    .chart-label {
-      width: 90px;
-      font-weight: 700;
-      font-size: 0.95rem;
-      flex-shrink: 0;
-    }
-
-    .chart-bar-wrapper {
-      flex: 1;
-      height: 24px;
-      background-color: #1e293b;
-      border-radius: 6px;
-      overflow: hidden;
-      display: flex;
-      border: 1px solid var(--border-color);
-    }
-
-    .bar-completed {
-      background-color: #10b981;
-      height: 100%;
-      transition: width 0.4s ease;
-    }
-
-    .bar-remaining {
-      background-color: #475569;
-      height: 100%;
-      transition: width 0.4s ease;
-    }
-
-    .chart-metrics {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      min-width: 195px;
-      text-align: right;
-    }
-
-    @media (max-width: 599px) {
-      .chart-metrics {
-        text-align: left;
-      }
-    }
-
-    /* Task Cards */
-    .task-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .task-card {
-      background-color: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 10px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      position: relative;
-      transition: border-color 0.2s;
-    }
-
-    /* Manager Urgent Visual Alert */
-    .task-card.manager-urgent {
-      border: 2px solid #f43f5e;
-      background: linear-gradient(145deg, rgba(244, 63, 94, 0.12) 0%, var(--bg-card) 100%);
-      box-shadow: 0 0 15px rgba(244, 63, 94, 0.2);
-    }
-
-    .manager-urgent-banner {
-      background-color: #f43f5e;
-      color: #fff;
-      font-size: 0.75rem;
-      font-weight: 800;
-      padding: 3px 8px;
-      border-radius: 4px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      align-self: flex-start;
-      letter-spacing: 0.05em;
-    }
-
-    .task-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 10px;
-    }
-
-    .task-title {
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: #fff;
-      word-break: break-word;
-    }
-
-    .task-controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
-
-    /* Priority Badges & Blinking Animations */
-    @keyframes pulseUrgent {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.55; transform: scale(0.98); }
-    }
-
-    .prio-badge {
-      padding: 8px 14px;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      font-weight: 700;
-      cursor: pointer;
-      user-select: none;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      min-height: 40px;
-    }
-
-    .prio-0 {
-      background-color: rgba(168, 85, 247, 0.25);
-      color: #e9d5ff;
-      border-color: var(--prio-0);
-      animation: pulseUrgent 1.1s infinite ease-in-out;
-    }
-
-    .prio-1 {
-      background-color: rgba(239, 68, 68, 0.25);
-      color: #fecaca;
-      border-color: var(--prio-1);
-      animation: pulseUrgent 1.4s infinite ease-in-out;
-    }
-
-    .prio-2 {
-      background-color: rgba(234, 179, 8, 0.2);
-      color: #fef08a;
-      border-color: var(--prio-2);
-    }
-
-    .prio-3 {
-      background-color: rgba(34, 197, 94, 0.2);
-      color: #bbf7d0;
-      border-color: var(--prio-3);
-    }
-
-    /* Status Cycle Buttons */
-    .status-btn {
-      padding: 8px 14px;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      font-weight: 700;
-      cursor: pointer;
-      user-select: none;
-      border: none;
-      color: #fff;
-      min-height: 40px;
-      transition: opacity 0.15s;
-    }
-
-    .status-btn:active { opacity: 0.8; }
-    .status-0 { background-color: var(--stat-0); }
-    .status-1 { background-color: var(--stat-1); }
-    .status-2 { background-color: var(--stat-2); color: #0f172a; }
-    .status-3 { background-color: var(--stat-3); color: #0f172a; }
-
-    /* Delete Button */
-    .delete-btn {
-      background-color: rgba(239, 68, 68, 0.15);
-      color: #f87171;
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 1rem;
-      cursor: pointer;
-      min-height: 40px;
-      margin-left: auto;
-    }
-
-    .delete-btn:hover {
-      background-color: #ef4444;
-      color: #fff;
-    }
-
-    /* Editable Note */
-    .note-box {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .note-label {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .note-input {
-      background-color: rgba(9, 14, 26, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      color: #e2e8f0;
-      padding: 10px 12px;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      width: 100%;
-      min-height: 44px;
-    }
-
-    .note-input:focus {
-      border-color: var(--accent-blue);
-      background-color: #090e1a;
-    }
-
-    /* Task Meta Footer */
-    .task-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-      padding-top: 8px;
-    }
-
-    .source-tag {
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-weight: 600;
-    }
-
-    .source-manager {
-      background-color: rgba(99, 102, 241, 0.25);
-      color: #c7d2fe;
-    }
-
-    .source-self {
-      background-color: rgba(148, 163, 184, 0.15);
-      color: #cbd5e1;
-    }
-
-    /* Modal */
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background-color: rgba(0, 0, 0, 0.75);
-      display: none;
-      justify-content: center;
-      align-items: center;
-      padding: 16px;
-      z-index: 200;
-    }
-
-    .modal-content {
-      background-color: var(--bg-panel);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      width: 100%;
-      max-width: 650px;
-      max-height: 85vh;
-      overflow-y: auto;
-      padding: 20px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
-    }
-
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .close-modal-btn {
-      background: var(--bg-card);
-      color: var(--text-main);
-      border: 1px solid var(--border-color);
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 700;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 30px 16px;
-      color: var(--text-muted);
-      font-size: 0.95rem;
-      background: rgba(15, 23, 42, 0.4);
-      border-radius: 8px;
-      border: 1px dashed var(--border-color);
-    }
-  </style>
-
-  <!-- Supabase JS Client CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NPE BACKEND MISSION CONTROL</title>
+    <style>
+        :root {
+            --bg-base: #070b14;
+            --bg-panel: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-hover: #263349;
+            --border-color: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-blue-hover: #2563eb;
+            
+            /* Priority Colors */
+            --prio-0: #855ef7; /* Purple */
+            --prio-1: #ef4444; /* Red */
+            --prio-2: #eab308; /* Yellow */
+            --prio-3: #22c55e; /* Green */
+
+            /* Status Colors */
+            --stat-0: #64748b; /* Gray */
+            --stat-1: #3b82f6; /* Blue */
+            --stat-2: #eab308; /* Yellow */
+            --stat-3: #10b981; /* Green */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans TC", sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            padding-bottom: 40px;
+            overflow-x: hidden;
+        }
+
+        header {
+            background: linear-gradient(180deg, #0f172a 0%, #090e1a 100%);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .header-top {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand h1 {
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            color: #f8fafc;
+        }
+
+        .date-badge {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            display: inline-block;
+            margin-top: 4px;
+        }
+
+        .role-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .role-btn {
+            background-color: var(--bg-card);
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .role-btn.active {
+            background-color: var(--accent-blue);
+            color: white;
+            border-color: var(--accent-blue);
+            font-weight: 600;
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #f1f5f9;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .form-control {
+            background-color: var(--bg-base);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: white;
+            font-size: 0.95rem;
+            width: 100%;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        .btn-submit {
+            background-color: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.2s;
+            margin-top: 6px;
+        }
+
+        .btn-submit:active {
+            background-color: var(--accent-blue-hover);
+        }
+
+        /* Stats Grid */
+        .stats-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        @media (min-width: 768px) {
+            .stats-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .member-stat-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .member-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .member-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        .member-progress-badge {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            font-weight: 600;
+        }
+
+        .stat-numbers {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            text-align: center;
+            background: rgba(0,0,0,0.2);
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+
+        .stat-item span {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-top: 2px;
+        }
+
+        /* Task List */
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .task-item {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+        }
+
+        .task-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .task-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        .task-badges {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+        }
+
+        .task-note {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            background: rgba(0,0,0,0.15);
+            padding: 6px 8px;
+            border-radius: 6px;
+            word-break: break-all;
+        }
+
+        .task-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .alert-box {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #f87171;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+            display: none;
+        }
+    </style>
 </head>
 <body>
 
-  <header>
-    <div class="header-top">
-      <div>
-        <div class="brand">
-          <div class="brand-dot"></div>
-          <h1>NPE BACKEND MISSION CONTROL</h1>
+    <header>
+        <div class="header-top">
+            <div class="brand">
+                <h1>NPE BACKEND MISSION CONTROL</h1>
+                <div class="date-badge" id="currentDateBadge">TODAY: LOADING...</div>
+            </div>
         </div>
-        <div class="date-badge" id="todayDisplay">Loading Date...</div>
-      </div>
-
-      <div class="role-selector" id="roleSelector">
-        <button class="role-btn manager-btn active" data-role="Manager">Assistant Manager</button>
-        <button class="role-btn" data-role="Phoenix">Phoenix</button>
-        <button class="role-btn" data-role="Weijun">Weijun</button>
-        <button class="role-btn" data-role="Samuel">Samuel</button>
-        <button class="role-btn" data-role="Adrian">Adrian</button>
-        <button class="role-btn" data-role="Queena">Queena</button>
-        <button class="role-btn" data-role="Tony">Tony</button>
-      </div>
-    </div>
-  </header>
-
-  <main>
-    <!-- Config & Error Alerts -->
-    <div id="configWarning" class="alert-box alert-warning">
-      <strong>⚠️ 尚未設定 Supabase 憑證：</strong> 請確認您已綁定正確的專案設定。
-    </div>
-    <div id="errorAlert" class="alert-box alert-error"></div>
-
-    <!-- ==========================================
-         VIEW 1: ASSISTANT MANAGER HOME
-    =========================================== -->
-    <div id="managerView" style="display: flex; flex-direction: column; gap: 24px;">
-      
-      <!-- A. 組員今日工作 -->
-      <section class="panel">
-        <div class="panel-header">
-          <div class="panel-title">📊 A. 組員今日工作 (點擊查看詳細 Task)</div>
+        <div style="max-width: 1100px; margin: 12px auto 0 auto;">
+            <div class="role-selector" id="roleSelector">
+                <button class="role-btn active" data-role="Assistant Manager">Assistant Manager</button>
+                <button class="role-btn" data-role="Phoenix">Phoenix</button>
+                <button class="role-btn" data-role="Weijun">Weijun</button>
+                <button class="role-btn" data-role="Samuel">Samuel</button>
+                <button class="role-btn" data-role="Adrian">Adrian</button>
+                <button class="role-btn" data-role="Queena">Queena</button>
+                <button class="role-btn" data-role="Tony">Tony</button>
+            </div>
         </div>
-        <div class="member-grid" id="managerMemberGrid"></div>
-      </section>
+    </header>
 
-      <!-- B. 任務指派欄 -->
-      <section class="panel">
-        <div class="panel-header">
-          <div class="panel-title">🎯 B. 任務指派欄</div>
-        </div>
-        <form id="assignForm">
-          <div class="form-grid assign-grid">
+    <div class="container">
+        <!-- 錯誤提示框 -->
+        <div id="errorAlert" class="alert-box"></div>
+
+        <!-- 任務指派區 (僅 Manager 顯示) -->
+        <div class="card" id="assignCard" style="display: none;">
+            <div class="card-title">🎯 B. 任務指派欄</div>
             <div class="form-group">
-              <label for="assignOwner">指派給 Team Member</label>
-              <select id="assignOwner" required>
-                <option value="Phoenix">Phoenix</option>
-                <option value="Weijun">Weijun</option>
-                <option value="Samuel">Samuel</option>
-                <option value="Adrian">Adrian</option>
-                <option value="Queena">Queena</option>
-                <option value="Tony">Tony</option>
-              </select>
+                <label>指派給 Team Member</label>
+                <select id="assignTarget" class="form-control">
+                    <option value="Phoenix">Phoenix</option>
+                    <option value="Weijun">Weijun</option>
+                    <option value="Samuel">Samuel</option>
+                    <option value="Adrian">Adrian</option>
+                    <option value="Queena">Queena</option>
+                    <option value="Tony">Tony</option>
+                </select>
             </div>
             <div class="form-group">
-              <label for="assignTitle">Task Title</label>
-              <input type="text" id="assignTitle" placeholder="例如：Customer A Warpage Analysis" required />
+                <label>Task Title</label>
+                <input type="text" id="assignTitle" class="form-control" placeholder="例如：Customer A Warpage Analysis">
             </div>
             <div class="form-group">
-              <label for="assignPriority">Priority</label>
-              <select id="assignPriority">
-                <option value="0">🟣 特急</option>
-                <option value="1">🔴 急</option>
-                <option value="2" selected>🟡 一般</option>
-                <option value="3">🟢 不急</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group" style="margin-top: 12px;">
-            <label for="assignNote">Note 備註</label>
-            <input type="text" id="assignNote" placeholder="例如：Need result before 3 PM" />
-          </div>
-          <button type="submit" class="btn-primary" style="margin-top: 14px;">指派任務 (即時同步至組員頁面)</button>
-        </form>
-      </section>
-
-      <!-- C. Weekly Team Overview -->
-      <section class="panel">
-        <div class="panel-header">
-          <div class="panel-title">📈 C. Weekly Team Overview (本週 Monday ~ Sunday)</div>
-          <span id="weekRangeText" style="font-size: 0.8rem; color: var(--text-muted);"></span>
-        </div>
-        <div class="chart-container" id="weeklyChartContainer"></div>
-      </section>
-
-    </div>
-
-    <!-- ==========================================
-         VIEW 2: TEAM MEMBER DAILY WORK PAGE
-    =========================================== -->
-    <div id="memberView" style="display: none; flex-direction: column; gap: 24px;">
-      
-      <!-- 新增今日工作 -->
-      <section class="panel">
-        <div class="panel-header">
-          <div class="panel-title">➕ 新增今日工作 (<span id="currentMemberLabel"></span>)</div>
-        </div>
-        <form id="memberAddForm">
-          <div class="form-grid member-add-grid">
-            <div class="form-group">
-              <label for="memberTaskTitle">工作項目 (Task Title)</label>
-              <input type="text" id="memberTaskTitle" placeholder="輸入今天要執行的工作項目..." required />
+                <label>Priority 優先級</label>
+                <select id="assignPriority" class="form-control">
+                    <option value="0">🟣 緊急 (Urgent)</option>
+                    <option value="1">🔴 急 (High)</option>
+                    <option value="2" selected>🟡 一般 (Normal)</option>
+                    <option value="3">🟢 輕鬆 (Low)</option>
+                </select>
             </div>
             <div class="form-group">
-              <label for="memberTaskPriority">Priority 優先級</label>
-              <select id="memberTaskPriority">
-                <option value="0">🟣 特急</option>
-                <option value="1">🔴 急</option>
-                <option value="2" selected>🟡 一般</option>
-                <option value="3">🟢 不急</option>
-              </select>
+                <label>Note 備註 (選填)</label>
+                <input type="text" id="assignNote" class="form-control" placeholder="例如：Need result before 3 PM">
             </div>
-          </div>
-          <div class="form-group" style="margin-top: 12px;">
-            <label for="memberTaskNote">Note 備註 (選填)</label>
-            <input type="text" id="memberTaskNote" placeholder="例如：Waiting SEM result" />
-          </div>
-          <button type="submit" class="btn-primary" style="margin-top: 14px;">建立今日任務</button>
-        </form>
-      </section>
-
-      <!-- 今日任務清單 -->
-      <section class="panel">
-        <div class="panel-header">
-          <div class="panel-title">📋 今日任務清單 (點擊 Priority / Status 徽章可直接切換)</div>
+            <button class="btn-submit" id="submitAssign">指派任務 (即時同步至組員頁面)</button>
         </div>
-        <div class="task-list" id="memberTaskList"></div>
-      </section>
 
+        <!-- 個人今日任務建立區 (組員本人顯示) -->
+        <div class="card" id="createCard">
+            <div class="card-title" id="createCardTitle">➕ 新增今日工作 ( Adrian )</div>
+            <div class="form-group">
+                <label>工作項目 (Task Title)</label>
+                <input type="text" id="taskTitle" class="form-control" placeholder="輸入今天要執行的工作項目...">
+            </div>
+            <div class="form-group">
+                <label>Priority 優先級</label>
+                <select id="taskPriority" class="form-control">
+                    <option value="0">🟣 緊急 (Urgent)</option>
+                    <option value="1">🔴 急 (High)</option>
+                    <option value="2" selected>🟡 一般 (Normal)</option>
+                    <option value="3">🟢 輕鬆 (Low)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Note 備註 (選填)</label>
+                <input type="text" id="taskNote" class="form-control" placeholder="例如：Waiting SEM result">
+            </div>
+            <button class="btn-submit" id="submitTask">建立今日任務</button>
+        </div>
+
+        <!-- 今日任務清單 -->
+        <div class="card">
+            <div class="card-title" id="listCardTitle">📋 今日任務清單 (點擊 Priority / Status 徽章可直接切換)</div>
+            <div id="taskListContainer" class="task-list">
+                <div style="color: var(--text-muted); text-align: center; padding: 20px;">載入中...</div>
+            </div>
+        </div>
+
+        <!-- 團隊總覽 -->
+        <div class="card">
+            <div class="card-title">📊 組員今日工作 (點擊查看詳細 Task)</div>
+            <div class="stats-container" id="teamStatsContainer">
+                <!-- 動態生成組員統計 -->
+            </div>
+        </div>
     </div>
-  </main>
 
-  <!-- Modal: 主管點擊組員查看詳細今日任務 -->
-  <div class="modal-backdrop" id="memberDetailModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="modalMemberTitle" style="font-size: 1.15rem;">組員今日詳細任務</h3>
-        <button class="close-modal-btn" id="closeModalBtn">關閉 ✕</button>
-      </div>
-      <div class="task-list" id="modalTaskList"></div>
-    </div>
-  </div>
-
-  <!-- Supabase Integration Script -->
-  <script>
-    // =========================================================================
-    // 【Supabase 專案設定】已自動帶入您的憑證
-    // =========================================================================
-    const SUPABASE_URL = "https://cwaenihhbhfgtruimsp.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_tzJrJUVLEhkTQLDUAjmo3w_nLRDeC0j";
-    // =========================================================================
-
-    const TEAM_MEMBERS = ["Phoenix", "Weijun", "Samuel", "Adrian", "Queena", "Tony"];
-    const PRIORITY_MAP = {
-      0: { label: "🟣 特急", class: "prio-0" },
-      1: { label: "🔴 急", class: "prio-1" },
-      2: { label: "🟡 一般", class: "prio-2" },
-      3: { label: "🟢 不急", class: "prio-3" }
-    };
-    const STATUS_MAP = {
-      0: { label: "未開始", class: "status-0" },
-      1: { label: "執行中", class: "status-1" },
-      2: { label: "等待中", class: "status-2" },
-      3: { label: "已完成", class: "status-3" }
-    };
-
-    // 狀態管理
-    let supabaseClient = null;
-    let isSupabaseConfigured = false;
-    let currentRole = "Manager"; // "Manager" or Team Member Name
-    let selectedModalMember = null;
-    let weeklyTasks = []; // 儲存本週 (Mon ~ Sun) 所有任務
-
-    // 取得當地時區 YYYY-MM-DD
-    function getLocalTodayStr() {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const day = String(now.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
-    }
-
-    // 取得當週 Monday ~ Sunday 的 YYYY-MM-DD 範圍
-    function getCurrentWeekRange() {
-      const now = new Date();
-      const dayOfWeek = now.getDay();
-      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      
-      const monday = new Date(now);
-      monday.setDate(now.getDate() + diffToMonday);
-      
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-
-      const fmt = (d) => {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, "0");
-        const day = String(d.getDate()).padStart(2, "0");
-        return `${y}-${m}-${day}`;
-      };
-
-      return { start: fmt(monday), end: fmt(sunday) };
-    }
-
-    // 格式化 Supabase Timestamp 為易讀時間
-    function formatTime(isoString) {
-      if (!isoString) return "剛剛";
-      try {
-        const dateObj = new Date(isoString);
-        return dateObj.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
-      } catch {
-        return "-";
-      }
-    }
-
-    function showError(msg) {
-      const el = document.getElementById("errorAlert");
-      el.textContent = `❌ 系統錯誤：${msg}`;
-      el.style.display = "block";
-      setTimeout(() => { el.style.display = "none"; }, 8000);
-    }
-
-    // 初始化日期顯示
-    function initDateHeader() {
-      const todayStr = getLocalTodayStr();
-      const weekRange = getCurrentWeekRange();
-      document.getElementById("todayDisplay").textContent = `TODAY: ${todayStr}`;
-      document.getElementById("weekRangeText").textContent = `${weekRange.start} ~ ${weekRange.end}`;
-    }
-
-    // 初始化 Supabase
-    async function initSupabase() {
-      if (!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_URL.includes("YOUR_")) {
-        document.getElementById("configWarning").style.display = "block";
-        isSupabaseConfigured = false;
-        renderAll();
-        return;
-      }
-
-      try {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        isSupabaseConfigured = true;
-        await fetchWeeklyTasks();
-        setupRealtimeSubscription();
-      } catch (err) {
-        showError(`Supabase 初始化失敗 (${err.message})`);
-      }
-    }
-
-    // 取得本週範圍的任務資料
-    async function fetchWeeklyTasks() {
-      if (!isSupabaseConfigured || !supabaseClient) return;
-      const weekRange = getCurrentWeekRange();
-
-      const { data, error } = await supabaseClient
-        .from("tasks")
-        .select("*")
-        .gte("date", weekRange.start)
-        .lte("date", weekRange.end);
-
-      if (error) {
-        showError(`讀取資料失敗：${error.message}`);
-        return;
-      }
-
-      weeklyTasks = data || [];
-      renderAll();
-    }
-
-    // 設定 Supabase 即時同步 (Realtime Postgres Changes)
-    function setupRealtimeSubscription() {
-      if (!isSupabaseConfigured || !supabaseClient) return;
-
-      supabaseClient
-        .channel("public:tasks")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "tasks" },
-          (payload) => {
-            // 當資料有異動時，重新抓取本週資料以保持圖表與列表同步
-            fetchWeeklyTasks();
-          }
-        )
-        .subscribe();
-    }
-
-    // 排序邏輯：Priority 數字越小越前面 (0:特急 > 1:急 > 2:一般 > 3:不急)
-    function sortTasks(tasks) {
-      return [...tasks].sort((a, b) => {
-        const pA = typeof a.priority === "number" ? a.priority : 2;
-        const pB = typeof b.priority === "number" ? b.priority : 2;
-        if (pA !== pB) return pA - pB;
-        const tA = new Date(a.created_at || 0).getTime();
-        const tB = new Date(b.created_at || 0).getTime();
-        return tB - tA;
-      });
-    }
-
-    // 渲染所有畫面
-    function renderAll() {
-      const todayStr = getLocalTodayStr();
-      const todayTasks = weeklyTasks.filter((t) => t.date === todayStr);
-
-      if (currentRole === "Manager") {
-        document.getElementById("managerView").style.display = "flex";
-        document.getElementById("memberView").style.display = "none";
-        renderManagerGrid(todayTasks);
-        renderWeeklyOverview(weeklyTasks);
-        if (selectedModalMember) {
-          renderModalTasks(selectedModalMember, todayTasks);
-        }
-      } else {
-        document.getElementById("managerView").style.display = "none";
-        document.getElementById("memberView").style.display = "flex";
-        document.getElementById("currentMemberLabel").textContent = currentRole;
-        const myTodayTasks = sortTasks(todayTasks.filter((t) => t.owner === currentRole));
-        renderTaskList(document.getElementById("memberTaskList"), myTodayTasks);
-      }
-    }
-
-    // A. 渲染主管首頁：6 位組員今日工作卡片
-    function renderManagerGrid(todayTasks) {
-      const grid = document.getElementById("managerMemberGrid");
-      grid.innerHTML = "";
-
-      TEAM_MEMBERS.forEach((member) => {
-        const mTasks = todayTasks.filter((t) => t.owner === member);
-        const total = mTasks.length;
-        const completed = mTasks.filter((t) => t.status === 3).length;
-        const running = mTasks.filter((t) => t.status === 1).length;
-        const rate = total === 0 ? 0 : Math.round((completed / total) * 100);
-
-        const card = document.createElement("div");
-        card.className = "member-card";
-        card.innerHTML = `
-          <div class="member-card-top">
-            <span class="member-name">${member}</span>
-            <span class="member-rate">${rate}%</span>
-          </div>
-          <div class="member-stats">
-            <div class="stat-item">
-              <span>今日總數</span>
-              <strong>${total}</strong>
-            </div>
-            <div class="stat-item running">
-              <span>執行中</span>
-              <strong>${running}</strong>
-            </div>
-            <div class="stat-item done">
-              <span>已完成</span>
-              <strong>${completed}</strong>
-            </div>
-          </div>
-        `;
-        card.addEventListener("click", () => {
-          selectedModalMember = member;
-          renderModalTasks(member, todayTasks);
-          document.getElementById("memberDetailModal").style.display = "flex";
-        });
-        grid.appendChild(card);
-      });
-    }
-
-    // C. 渲染主管首頁：Weekly Team Overview 橫向堆疊長條圖
-    function renderWeeklyOverview(weekTasks) {
-      const container = document.getElementById("weeklyChartContainer");
-      container.innerHTML = "";
-
-      TEAM_MEMBERS.forEach((member) => {
-        const mTasks = weekTasks.filter((t) => t.owner === member);
-        const total = mTasks.length;
-        const completed = mTasks.filter((t) => t.status === 3).length;
-        const remaining = total - completed;
-        const rate = total === 0 ? 0 : Math.round((completed / total) * 100);
-
-        const completedPct = total === 0 ? 0 : (completed / total) * 100;
-        const remainingPct = total === 0 ? 0 : (remaining / total) * 100;
-
-        const row = document.createElement("div");
-        row.className = "chart-row";
-        row.innerHTML = `
-          <div class="chart-label">${member}</div>
-          <div class="chart-bar-wrapper" title="已完成: ${completed} / 未完成: ${remaining}">
-            <div class="bar-completed" style="width: ${completedPct}%;"></div>
-            <div class="bar-remaining" style="width: ${remainingPct}%;"></div>
-          </div>
-          <div class="chart-metrics">
-            Total <strong>${total}</strong> | Done <strong style="color:#10b981;">${completed}</strong> | Rem <strong>${remaining}</strong> (${rate}%)
-          </div>
-        `;
-        container.appendChild(row);
-      });
-    }
-
-    // 渲染主管點擊組員後的 Modal 任務列表
-    function renderModalTasks(member, todayTasks) {
-      document.getElementById("modalMemberTitle").textContent = `${member} — 今日工作明細 (${getLocalTodayStr()})`;
-      const memberTasks = sortTasks(todayTasks.filter((t) => t.owner === member));
-      renderTaskList(document.getElementById("modalTaskList"), memberTasks);
-    }
-
-    // 渲染任務卡片列表 (共用元件：組員頁 & 主管 Modal)
-    function renderTaskList(container, tasks) {
-      container.innerHTML = "";
-
-      if (tasks.length === 0) {
-        container.innerHTML = `<div class="empty-state">今日尚無任務紀錄</div>`;
-        return;
-      }
-
-      tasks.forEach((task) => {
-        const prioInfo = PRIORITY_MAP[task.priority] || PRIORITY_MAP[2];
-        const statInfo = STATUS_MAP[task.status] || STATUS_MAP[0];
-        const isManagerUrgent = task.source === "Assistant Manager" && (task.priority === 0 || task.priority === 1);
-
-        const card = document.createElement("div");
-        card.className = `task-card ${isManagerUrgent ? "manager-urgent" : ""}`;
-
-        let urgentBadgeHTML = "";
-        if (isManagerUrgent) {
-          urgentBadgeHTML = `<div class="manager-urgent-banner">⚡ 主管指派緊急任務</div>`;
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase 設定
+        const SUPABASE_URL = "https://cwaenihhbhfgtruimsp.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_tzJrJUVLEhkTQLDUAjmo3w_nLRDeC0j";
+        
+        let supabaseClient = null;
+        try {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (e) {
+            showError("Supabase 初始化失敗：" + e.message);
         }
 
-        card.innerHTML = `
-          ${urgentBadgeHTML}
-          <div class="task-header">
-            <div class="task-title">${escapeHTML(task.title)}</div>
-          </div>
+        let currentRole = "Assistant Manager";
+        const teamMembers = ["Phoenix", "Weijun", "Samuel", "Adrian", "Queena", "Tony"];
+        let allTasks = [];
 
-          <div class="task-controls">
-            <button type="button" class="prio-badge ${prioInfo.class}" data-action="cycle-prio" title="點擊循環切換 Priority">
-              ${prioInfo.label}
-            </button>
-            <button type="button" class="status-btn ${statInfo.class}" data-action="cycle-status" title="點擊循環切換 Status">
-              ${statInfo.label}
-            </button>
-            <button type="button" class="delete-btn" data-action="delete" title="刪除任務">🗑️</button>
-          </div>
-
-          <div class="note-box">
-            <div class="note-label">
-              <span>Note 備註 (離開輸入框或按 Enter 自動儲存)</span>
-            </div>
-            <input type="text" class="note-input" value="${escapeHTML(task.note || "")}" placeholder="點擊輸入備註..." />
-          </div>
-
-          <div class="task-meta">
-            <span class="source-tag ${task.source === "Assistant Manager" ? "source-manager" : "source-self"}">
-              Source: ${escapeHTML(task.source || "Self")}
-            </span>
-            <span>Date: ${escapeHTML(task.date || "-")}</span>
-            <span>Created: ${formatTime(task.created_at)}</span>
-            <span>Updated: ${formatTime(task.updated_at)}</span>
-          </div>
-        `;
-
-        // 綁定 Priority 循環切換 (0 -> 1 -> 2 -> 3 -> 0)
-        card.querySelector('[data-action="cycle-prio"]').addEventListener("click", async () => {
-          const nextPrio = ((typeof task.priority === "number" ? task.priority : 2) + 1) % 4;
-          await updateTaskField(task.id, { priority: nextPrio });
-        });
-
-        // 綁定 Status 循環切換 (0 -> 1 -> 2 -> 3 -> 0)
-        card.querySelector('[data-action="cycle-status"]').addEventListener("click", async () => {
-          const nextStatus = ((typeof task.status === "number" ? task.status : 0) + 1) % 4;
-          await updateTaskField(task.id, { status: nextStatus });
-        });
-
-        // 綁定 Note 即時編輯儲存
-        const noteInput = card.querySelector(".note-input");
-        const saveNote = async () => {
-          const newVal = noteInput.value.trim();
-          if (newVal !== (task.note || "")) {
-            await updateTaskField(task.id, { note: newVal });
-          }
+        const priorityMap = {
+            0: { label: "緊急", color: "var(--prio-0)" },
+            1: { label: "急", color: "var(--prio-1)" },
+            2: { label: "一般", color: "var(--prio-2)" },
+            3: { label: "輕鬆", color: "var(--prio-3)" }
         };
-        noteInput.addEventListener("blur", saveNote);
-        noteInput.addEventListener("keydown", (e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            noteInput.blur();
-          }
+
+        const statusMap = {
+            0: { label: "未開始", color: "var(--stat-0)" },
+            1: { label: "執行中", color: "var(--stat-1)" },
+            2: { label: "等待中", color: "var(--stat-2)" },
+            3: { label: "已完成", color: "var(--stat-3)" }
+        };
+
+        function getLocalDateString() {
+            const d = new Date();
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        const todayStr = getLocalDateString();
+        document.getElementById('currentDateBadge').innerText = `TODAY: ${todayStr}`;
+
+        function showError(msg) {
+            const errBox = document.getElementById('errorAlert');
+            errBox.style.display = 'block';
+            errBox.innerText = `系統錯誤：${msg}`;
+        }
+
+        // 角色切換
+        document.querySelectorAll('.role-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentRole = e.target.getAttribute('data-role');
+                
+                if (currentRole === "Assistant Manager") {
+                    document.getElementById('assignCard').style.display = 'block';
+                    document.getElementById('createCard').style.display = 'none';
+                    document.getElementById('listCardTitle').innerText = `📋 團隊全部今日任務`;
+                } else {
+                    document.getElementById('assignCard').style.display = 'none';
+                    document.getElementById('createCard').style.display = 'block';
+                    document.getElementById('createCardTitle').innerText = `➕ 新增今日工作 ( ${currentRole} )`;
+                    document.getElementById('listCardTitle').innerText = `📋 今日任務清單 ( ${currentRole} )`;
+                }
+                renderUI();
+            });
         });
 
-        // 綁定刪除確認框
-        card.querySelector('[data-action="delete"]').addEventListener("click", async () => {
-          if (window.confirm("確定刪除此任務？")) {
-            await deleteTaskById(task.id);
-          }
+        // 讀取資料
+        async function fetchTasks() {
+            if (!supabaseClient) return;
+            try {
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .select('*')
+                    .eq('task_date', todayStr);
+
+                if (error) throw error;
+                allTasks = data || [];
+                renderUI();
+            } catch (err) {
+                showError("讀取資料失敗: " + err.message);
+            }
+        }
+
+        // 建立個人任務
+        document.getElementById('submitTask').addEventListener('click', async () => {
+            if (!supabaseClient) return;
+            const title = document.getElementById('taskTitle').value.trim();
+            const priority = parseInt(document.getElementById('taskPriority').value);
+            const note = document.getElementById('taskNote').value.trim();
+
+            if (!title) {
+                alert('請輸入工作項目標題');
+                return;
+            }
+
+            try {
+                const { error } = await supabaseClient.from('tasks').insert([{
+                    task_date: todayStr,
+                    owner: currentRole,
+                    title: title,
+                    priority: priority,
+                    status: 0,
+                    note: note,
+                    source: "Self"
+                }]);
+
+                if (error) throw error;
+
+                document.getElementById('taskTitle').value = '';
+                document.getElementById('taskNote').value = '';
+                fetchTasks();
+            } catch (err) {
+                showError("建立任務失敗: " + err.message);
+            }
         });
 
-        container.appendChild(card);
-      });
-    }
+        // 經理指派任務
+        document.getElementById('submitAssign').addEventListener('click', async () => {
+            if (!supabaseClient) return;
+            const target = document.getElementById('assignTarget').value;
+            const title = document.getElementById('assignTitle').value.trim();
+            const priority = parseInt(document.getElementById('assignPriority').value);
+            const note = document.getElementById('assignNote').value.trim();
 
-    // Supabase 寫入：新增任務
-    async function createTask({ owner, title, priority, note, source }) {
-      if (!isSupabaseConfigured || !supabaseClient) {
-        showError("尚未設定 Supabase 憑證，無法寫入資料。");
-        return;
-      }
-      try {
-        const { error } = await supabaseClient.from("tasks").insert([
-          {
-            owner,
-            title,
-            priority: Number(priority),
-            status: 0,
-            note: note || "",
-            date: getLocalTodayStr(),
-            source
-          }
-        ]);
-        if (error) throw error;
-      } catch (err) {
-        showError(`建立任務失敗：${err.message}`);
-      }
-    }
+            if (!title) {
+                alert('請輸入工作項目標題');
+                return;
+            }
 
-    // Supabase 更新：修改欄位
-    async function updateTaskField(taskId, updates) {
-      if (!isSupabaseConfigured || !supabaseClient) return;
-      try {
-        const { error } = await supabaseClient
-          .from("tasks")
-          .update({
-            ...updates,
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", taskId);
-        if (error) throw error;
-      } catch (err) {
-        showError(`更新任務失敗：${err.message}`);
-      }
-    }
+            try {
+                const { error } = await supabaseClient.from('tasks').insert([{
+                    task_date: todayStr,
+                    owner: target,
+                    title: title,
+                    priority: priority,
+                    status: 0,
+                    note: note,
+                    source: "Assistant Manager"
+                }]);
 
-    // Supabase 刪除
-    async function deleteTaskById(taskId) {
-      if (!isSupabaseConfigured || !supabaseClient) return;
-      try {
-        const { error } = await supabaseClient
-          .from("tasks")
-          .delete()
-          .eq("id", taskId);
-        if (error) throw error;
-      } catch (err) {
-        showError(`刪除任務失敗：${err.message}`);
-      }
-    }
+                if (error) throw error;
 
-    function escapeHTML(str) {
-      return String(str)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-    }
+                document.getElementById('assignTitle').value = '';
+                document.getElementById('assignNote').value = '';
+                alert(`已成功指派任務給 ${target}！`);
+                fetchTasks();
+            } catch (err) {
+                showError("指派任務失敗: " + err.message);
+            }
+        });
 
-    // 事件監聽：角色切換按鈕
-    document.getElementById("roleSelector").addEventListener("click", (e) => {
-      const btn = e.target.closest(".role-btn");
-      if (!btn) return;
-      document.querySelectorAll(".role-btn").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      currentRole = btn.dataset.role;
-      renderAll();
-    });
+        // 循環變更優先級
+        window.cyclePriority = async function(id, currentPrio) {
+            const nextPrio = (currentPrio + 1) % 4;
+            try {
+                const { error } = await supabaseClient
+                    .from('tasks')
+                    .update({ priority: nextPrio })
+                    .eq('id', id);
+                if (error) throw error;
+                fetchTasks();
+            } catch (err) {
+                showError("更新優先級失敗: " + err.message);
+            }
+        }
 
-    // 事件監聽：主管指派任務表單
-    document.getElementById("assignForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const owner = document.getElementById("assignOwner").value;
-      const title = document.getElementById("assignTitle").value.trim();
-      const priority = document.getElementById("assignPriority").value;
-      const note = document.getElementById("assignNote").value.trim();
-      if (!title) return;
+        // 循環變更狀態
+        window.cycleStatus = async function(id, currentStat) {
+            const nextStat = (currentStat + 1) % 4;
+            try {
+                const { error } = await supabaseClient
+                    .from('tasks')
+                    .update({ status: nextStat })
+                    .eq('id', id);
+                if (error) throw error;
+                fetchTasks();
+            } catch (err) {
+                showError("更新狀態失敗: " + err.message);
+            }
+        }
 
-      const submitBtn = e.target.querySelector("button[type='submit']");
-      submitBtn.disabled = true;
-      await createTask({
-        owner,
-        title,
-        priority,
-        note,
-        source: "Assistant Manager"
-      });
-      e.target.reset();
-      document.getElementById("assignPriority").value = "2";
-      submitBtn.disabled = false;
-    });
+        // 刪除任務
+        window.deleteTask = async function(id) {
+            if (!confirm('確定要刪除這個任務嗎？')) return;
+            try {
+                const { error } = await supabaseClient
+                    .from('tasks')
+                    .delete()
+                    .eq('id', id);
+                if (error) throw error;
+                fetchTasks();
+            } catch (err) {
+                showError("刪除任務失敗: " + err.message);
+            }
+        }
 
-    // 事件監聽：組員新增今日工作表單
-    document.getElementById("memberAddForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const title = document.getElementById("memberTaskTitle").value.trim();
-      const priority = document.getElementById("memberTaskPriority").value;
-      const note = document.getElementById("memberTaskNote").value.trim();
-      if (!title) return;
+        // 渲染介面
+        function renderUI() {
+            const container = document.getElementById('taskListContainer');
+            let displayTasks = allTasks;
 
-      const submitBtn = e.target.querySelector("button[type='submit']");
-      submitBtn.disabled = true;
-      await createTask({
-        owner: currentRole,
-        title,
-        priority,
-        note,
-        source: "Self"
-      });
-      e.target.reset();
-      document.getElementById("memberTaskPriority").value = "2";
-      submitBtn.disabled = false;
-    });
+            if (currentRole !== "Assistant Manager") {
+                displayTasks = allTasks.filter(t => t.owner === currentRole);
+            }
 
-    // 關閉 Modal
-    document.getElementById("closeModalBtn").addEventListener("click", () => {
-      document.getElementById("memberDetailModal").style.display = "none";
-      selectedModalMember = null;
-    });
+            if (displayTasks.length === 0) {
+                container.innerHTML = `<div style="color: var(--text-muted); text-align: center; padding: 20px;">今日尚無任務紀錄</div>`;
+            } else {
+                container.innerHTML = displayTasks.map(t => {
+                    const prio = priorityMap[t.priority] || priorityMap[2];
+                    const stat = statusMap[t.status] || statusMap[0];
+                    return `
+                        <div class="task-item">
+                            <div class="task-top">
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    ${currentRole === "Assistant Manager" ? `<span style="font-size: 0.75rem; color: #60a5fa; font-weight: 700;">[ ${t.owner} ]</span>` : ''}
+                                    <div class="task-title">${t.title}</div>
+                                </div>
+                                <div class="task-badges">
+                                    <button class="badge" style="background-color: ${prio.color}; color: #000;" onclick="cyclePriority(${t.id}, ${t.priority})" title="點擊切換優先級">${prio.label}</button>
+                                    <button class="badge" style="background-color: ${stat.color}; color: #fff;" onclick="cycleStatus(${t.id}, ${t.status})" title="點擊切換狀態">${stat.label}</button>
+                                </div>
+                            </div>
+                            ${t.note ? `<div class="task-note">備註：${t.note}</div>` : ''}
+                            <div class="task-footer">
+                                <span>來源: ${t.source}</span>
+                                <button onclick="deleteTask(${t.id})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.75rem;">刪除</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
 
-    document.getElementById("memberDetailModal").addEventListener("click", (e) => {
-      if (e.target.id === "memberDetailModal") {
-        document.getElementById("memberDetailModal").style.display = "none";
-        selectedModalMember = null;
-      }
-    });
+            // 渲染團隊統計
+            const statsContainer = document.getElementById('teamStatsContainer');
+            statsContainer.innerHTML = teamMembers.map(member => {
+                const mTasks = allTasks.filter(t => t.owner === member);
+                const total = mTasks.length;
+                const executing = mTasks.filter(t => t.status === 1).length;
+                const completed = mTasks.filter(t => t.status === 3).length;
+                const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-    // 啟動程式
-    initDateHeader();
-    initSupabase();
-  </script>
+                return `
+                    <div class="member-stat-card" style="cursor: pointer;" onclick="switchRoleTo('${member}')">
+                        <div class="member-header">
+                            <span class="member-name">${member}</span>
+                            <span class="member-progress-badge">${percent}% 完成</span>
+                        </div>
+                        <div class="stat-numbers">
+                            <div class="stat-item">總數<span style="color: #fff;">${total}</span></div>
+                            <div class="stat-item">執行中<span style="color: var(--accent-blue);">${executing}</span></div>
+                            <div class="stat-item">已完成<span style="color: #10b981;">${completed}</span></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.switchRoleTo = function(memberName) {
+            document.querySelectorAll('.role-btn').forEach(btn => {
+                if (btn.getAttribute('data-role') === memberName) {
+                    btn.click();
+                }
+            });
+        }
+
+        // 初始化載入
+        fetchTasks();
+    </script>
 </body>
 </html>

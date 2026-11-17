@@ -342,7 +342,7 @@
         <div id="errorAlert" class="alert-box"></div>
 
         <!-- 任務指派區 (僅 Manager 顯示) -->
-        <div class="card" id="assignCard" style="display: none;">
+        <div class="card" id="assignCard" style="display: block;">
             <div class="card-title">🎯 B. 任務指派欄</div>
             <div class="form-group">
                 <label>指派給 Team Member</label>
@@ -376,7 +376,7 @@
         </div>
 
         <!-- 個人今日任務建立區 (組員本人顯示) -->
-        <div class="card" id="createCard">
+        <div class="card" id="createCard" style="display: none;">
             <div class="card-title" id="createCardTitle">➕ 新增今日工作 ( Adrian )</div>
             <div class="form-group">
                 <label>工作項目 (Task Title)</label>
@@ -400,7 +400,7 @@
 
         <!-- 今日任務清單 -->
         <div class="card">
-            <div class="card-title" id="listCardTitle">📋 今日任務清單 (點擊 Priority / Status 徽章可直接切換)</div>
+            <div class="card-title" id="listCardTitle">📋 團隊全部今日任務</div>
             <div id="taskListContainer" class="task-list">
                 <div style="color: var(--text-muted); text-align: center; padding: 20px;">載入中...</div>
             </div>
@@ -418,8 +418,8 @@
     <!-- Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // Supabase 設定
-        const SUPABASE_URL = "https://cwaenihhbhfgtruimsp.supabase.co";
+        // Supabase 正確設定
+        const SUPABASE_URL = "https://cwaenihhbufgtruimsp.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_tzJrJUVLEhkTQLDUAjmo3w_nLRDeC0j";
         
         let supabaseClient = null;
@@ -464,6 +464,12 @@
             errBox.innerText = `系統錯誤：${msg}`;
         }
 
+        function clearError() {
+            const errBox = document.getElementById('errorAlert');
+            errBox.style.display = 'none';
+            errBox.innerText = '';
+        }
+
         // 角色切換
         document.querySelectorAll('.role-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -495,6 +501,7 @@
                     .eq('task_date', todayStr);
 
                 if (error) throw error;
+                clearError();
                 allTasks = data || [];
                 renderUI();
             } catch (err) {
